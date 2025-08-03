@@ -44,6 +44,15 @@ class FinancePlot:
         return (series - series.mean()) / series.std()
 
     def preprocess(self, *series, labels: List) -> List:
+        # Sanity checks
+        for obj in series:
+            if not isinstance(obj, pd.Series):
+                raise ValueError("Only pd.Series accepted")
+
+        if self.subplot == True and len(series) < 2:
+            warnings.warn("Subplot should be False when there is only one series")
+            self.subplot = False
+        
         if self.standardize:
             if len(labels) == len(series):
                 dfs = [self._standardize(s).rename(l) for s, l in zip(series, labels)]
