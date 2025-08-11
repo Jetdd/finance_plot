@@ -5,7 +5,7 @@ LastEditTime: 2025-07-28 15:21:35
 Description:
 """
 
-from typing import List
+from typing import List, Tuple
 import pandas as pd
 import altair as alt
 import warnings
@@ -47,12 +47,14 @@ class FinancePlot:
         # Sanity checks
         for obj in series:
             if not isinstance(obj, pd.Series):
-                raise ValueError("Only pd.Series accepted")
-
-        if self.subplot == True and len(series) < 2:
-            warnings.warn("Subplot should be False when there is only one series")
-            self.subplot = False
+                raise TypeError(
+                    f"Expected a pandas series, got {type(obj)} instead."
+                )
         
+        if len(series) < 2 and self.subplot:
+            warnings.warn("At least two series are required for subplot=True")
+            self.subplot = False
+            
         if self.standardize:
             if len(labels) == len(series):
                 dfs = [self._standardize(s).rename(l) for s, l in zip(series, labels)]
@@ -84,7 +86,7 @@ class FinancePlot:
         return dfs
 
     def plot_trend(
-        self, *series, labels=[], title="Line Plot", x_label="Time", y_label="Value"
+        self, *series, labels=[], title="Line Plot", x_label="Time", y_label="Value", figsize: Tuple=(600, 300)
     ) -> alt.Chart:
         if self.interactive:
             for s in series:
@@ -110,7 +112,7 @@ class FinancePlot:
             chart = chart.encode(
                 x=alt.X(title=x_label),
                 y=alt.Y(title=y_label),
-            ).properties(title=title)
+            ).properties(title=title, width=figsize[0], height=figsize[1])
 
         else:
             new_dfs = []
@@ -135,13 +137,13 @@ class FinancePlot:
                     x=alt.X(title=x_label),
                     y=alt.Y(title=y_label),
                 )
-                .properties(title=title)
+                .properties(title=title, width=figsize[0], height=figsize[1])
             )
             for c in charts[1:]:
                 c = c.encode(
                     x=alt.X(title=x_label),
                     y=alt.Y(title=y_label),
-                ).properties(title=title)
+                ).properties(title=title, width=figsize[0], height=figsize[1])
             chart = chart & c
 
         return chart
@@ -229,8 +231,6 @@ class FinancePlot:
             symbols = last_loc.mark_text(align="left", dx=4).encode(text="symbol")
 
             chart = line + last_loc + symbols
-
-        chart = chart.properties(width=600, height=300)
 
         return chart
 
