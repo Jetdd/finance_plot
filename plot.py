@@ -14,7 +14,6 @@ alt.data_transformers.enable("vegafusion")
 
 
 class FinancePlot:
-
     def __init__(
         self,
         subplot: bool = False,
@@ -47,9 +46,7 @@ class FinancePlot:
         # Sanity checks
         for obj in series:
             if not isinstance(obj, pd.Series):
-                raise TypeError(
-                    f"Expected a pandas series, got {type(obj)} instead."
-                )
+                raise TypeError(f"Expected a pandas series, got {type(obj)} instead.")
 
         if len(series) < 2 and self.subplot:
             warnings.warn("At least two series are required for subplot=True")
@@ -57,33 +54,31 @@ class FinancePlot:
 
         if self.standardize:
             if len(labels) == len(series):
-                dfs = [self._standardize(s).rename(l)
-                       for s, l in zip(series, labels)]
+                dfs = [self._standardize(s).rename(l) for s, l in zip(series, labels)]
             else:
                 dfs = [
-                    self._standardize(s).rename(f"series_{i+1}")
+                    self._standardize(s).rename(f"series_{i + 1}")
                     for i, s in enumerate(series)
                 ]
         else:
             if len(labels) == len(series):
                 dfs = [s.rename(l) for s, l in zip(series, labels)]
             else:
-                dfs = [s.rename(f"series_{i+1}") for i, s in enumerate(series)]
+                dfs = [s.rename(f"series_{i + 1}") for i, s in enumerate(series)]
 
         if self.normalize:
             if len(labels) == len(series):
-                dfs = [self._standardize(s).rename(l)
-                       for s, l in zip(dfs, labels)]
+                dfs = [self._standardize(s).rename(l) for s, l in zip(dfs, labels)]
             else:
                 dfs = [
-                    self._standardize(s).rename(f"series_{i+1}")
+                    self._standardize(s).rename(f"series_{i + 1}")
                     for i, s in enumerate(dfs)
                 ]
         else:
             if len(labels) == len(series):
                 dfs = [s.rename(l) for s, l in zip(dfs, labels)]
             else:
-                dfs = [s.rename(f"series_{i+1}") for i, s in enumerate(dfs)]
+                dfs = [s.rename(f"series_{i + 1}") for i, s in enumerate(dfs)]
 
         return dfs
 
@@ -94,7 +89,7 @@ class FinancePlot:
         title="Line Plot",
         x_label="Time",
         y_label="Value",
-        secondary_y=False,                 # False | True | [label/index, ...]
+        secondary_y=False,  # False | True | [label/index, ...]
         figsize: Tuple = (600, 300),
     ) -> alt.Chart:
         if self.interactive:
@@ -109,7 +104,9 @@ class FinancePlot:
         # --- subplot=True：保持原有子图栈叠；不做 secondary_y ---
         if self.subplot:
             if secondary_y:
-                warnings.warn("secondary_y is not supported when subplot=True; fallback to single axis per subplot.")
+                warnings.warn(
+                    "secondary_y is not supported when subplot=True; fallback to single axis per subplot."
+                )
             new_dfs = []
             for s in dfs:
                 s.index.name = "time"
@@ -143,10 +140,14 @@ class FinancePlot:
 
         # --- 无 secondary_y：走原有单轴逻辑 ---
         if not secondary_y:
-            chart = self._plot_trend(df).encode(
-                x=alt.X(title=x_label),
-                y=alt.Y(title=y_label),
-            ).properties(title=title, width=figsize[0], height=figsize[1])
+            chart = (
+                self._plot_trend(df)
+                .encode(
+                    x=alt.X(title=x_label),
+                    y=alt.Y(title=y_label),
+                )
+                .properties(title=title, width=figsize[0], height=figsize[1])
+            )
             return chart
 
         # --- secondary_y：分左右轴并叠加 ---
@@ -177,10 +178,18 @@ class FinancePlot:
             .mark_line()
             .encode(
                 x=alt.X(
-                    "time:O", title=x_label,
-                    axis=alt.Axis(labelAngle=45, labelOverlap="greedy", labelLimit=100, labelPadding=5),
+                    "time:O",
+                    title=x_label,
+                    axis=alt.Axis(
+                        labelAngle=45,
+                        labelOverlap="greedy",
+                        labelLimit=100,
+                        labelPadding=5,
+                    ),
                 ),
-                y=alt.Y("value:Q", axis=alt.Axis(title=y_label), scale=alt.Scale(zero=False)),
+                y=alt.Y(
+                    "value:Q", axis=alt.Axis(title=y_label), scale=alt.Scale(zero=False)
+                ),
                 color=alt.Color("symbol:N").title(None),
             )
         )
@@ -192,7 +201,8 @@ class FinancePlot:
             .encode(
                 x=alt.X("time:O", title=x_label),
                 y=alt.Y(
-                    "value:Q", axis=alt.Axis(title="Secondary Y", orient="right"),
+                    "value:Q",
+                    axis=alt.Axis(title="Secondary Y", orient="right"),
                     scale=alt.Scale(zero=False),
                 ),
                 color=alt.Color("symbol:N").title(None),
@@ -202,15 +212,21 @@ class FinancePlot:
 
         if self.interactive:
             # 共享 hover（基于 time）
-            nearest = alt.selection_point(nearest=True, on="pointerover", fields=["time"], empty=False)
+            nearest = alt.selection_point(
+                nearest=True, on="pointerover", fields=["time"], empty=False
+            )
 
             # 左侧高亮点（放在左层内部）
             left_pts = (
                 alt.Chart(left_df)
                 .mark_point()
                 .encode(
-                    x="time:O", y="value:Q", color="symbol:N",
-                    opacity=alt.when(nearest).then(alt.value(1)).otherwise(alt.value(0)),
+                    x="time:O",
+                    y="value:Q",
+                    color="symbol:N",
+                    opacity=alt.when(nearest)
+                    .then(alt.value(1))
+                    .otherwise(alt.value(0)),
                 )
                 .transform_filter(nearest)
             )
@@ -221,16 +237,22 @@ class FinancePlot:
                 alt.Chart(right_df)
                 .mark_point()
                 .encode(
-                    x="time:O", y="value:Q", color="symbol:N",
-                    opacity=alt.when(nearest).then(alt.value(1)).otherwise(alt.value(0)),
+                    x="time:O",
+                    y="value:Q",
+                    color="symbol:N",
+                    opacity=alt.when(nearest)
+                    .then(alt.value(1))
+                    .otherwise(alt.value(0)),
                 )
                 .transform_filter(nearest)
             )
             right_layer = alt.layer(right, right_pts)
 
             # 主图：左右层并列，并在此处声明独立 y 轴（避免“串台”）
-            chart = alt.layer(left_layer, right_layer).resolve_scale(y="independent").properties(
-                title=title, width=figsize[0], height=figsize[1]
+            chart = (
+                alt.layer(left_layer, right_layer)
+                .resolve_scale(y="independent")
+                .properties(title=title, width=figsize[0], height=figsize[1])
             )
 
             # 隐形选择器（无 y 编码）
@@ -256,10 +278,11 @@ class FinancePlot:
             return chart + selectors + tool
 
         # 非交互：简单左右叠加 + 独立 y
-        return alt.layer(left, right).resolve_scale(y="independent").properties(
-            title=title, width=figsize[0], height=figsize[1]
+        return (
+            alt.layer(left, right)
+            .resolve_scale(y="independent")
+            .properties(title=title, width=figsize[0], height=figsize[1])
         )
-
 
     def _plot_trend(self, df: pd.DataFrame) -> alt.Chart:
         if self.interactive:
@@ -281,7 +304,15 @@ class FinancePlot:
                         ),
                     ),
                     y=alt.Y("value:Q").scale(zero=False),
-                    color=alt.Color("symbol:N").legend(None),
+                    color=alt.Color(
+                        "symbol:N",
+                        legend=alt.Legend(
+                            title=None,
+                            orient="right",
+                            direction="vertical",
+                            symbolType="stroke",
+                        ),
+                    ),
                 )
             )
 
@@ -307,7 +338,10 @@ class FinancePlot:
                     tooltip=[
                         alt.Tooltip("time:O", title="Time"),
                         # 注意：这里列名要和 pivot 后的一致
-                        *[alt.Tooltip(sym + ":Q", title=sym) for sym in df["symbol"].unique()]
+                        *[
+                            alt.Tooltip(sym + ":Q", title=sym)
+                            for sym in df["symbol"].unique()
+                        ],
                     ],
                 )
                 .transform_filter(nearest)
@@ -318,7 +352,17 @@ class FinancePlot:
             chart = line + selectors + points + rules
 
         else:
-            base = alt.Chart(df).encode(alt.Color("symbol").legend(None))
+            base = alt.Chart(df).encode(
+                alt.Color(
+                    "symbol:N",
+                    legend=alt.Legend(
+                        title=None,
+                        orient="right",
+                        direction="vertical",
+                        symbolType="stroke",
+                    ),
+                )
+            )
 
             line = base.mark_line().encode(
                 x=alt.X(
@@ -345,8 +389,7 @@ class FinancePlot:
                 )
             )
 
-            symbols = last_loc.mark_text(
-                align="left", dx=4).encode(text="symbol")
+            symbols = last_loc.mark_text(align="left", dx=4).encode(text="symbol")
 
             chart = line + last_loc + symbols
 
@@ -374,13 +417,12 @@ class FinancePlot:
             )
             for i, c in enumerate(charts[1:]):
                 c = c.properties(
-                    width=600, height=300, title=f"Distribution for {dfs[i+1].name}"
+                    width=600, height=300, title=f"Distribution for {dfs[i + 1].name}"
                 )
             chart = chart & c
 
         else:
-            warnings.warn(
-                "Distribution plot is not supported for subplot=False")
+            warnings.warn("Distribution plot is not supported for subplot=False")
 
         return chart
 
@@ -428,18 +470,17 @@ class FinancePlot:
     def plot_corr(self, *series, labels: list = []) -> alt.Chart:
         if self.standardize:
             if len(labels) == len(series):
-                dfs = [self._standardize(s).rename(l)
-                       for s, l in zip(series, labels)]
+                dfs = [self._standardize(s).rename(l) for s, l in zip(series, labels)]
             else:
                 dfs = [
-                    self._standardize(s).rename(f"series_{i+1}")
+                    self._standardize(s).rename(f"series_{i + 1}")
                     for i, s in enumerate(series)
                 ]
         else:
             if len(labels) == len(series):
                 dfs = [s.rename(l) for s, l in zip(series, labels)]
             else:
-                dfs = [s.rename(f"series_{i+1}") for i, s in enumerate(series)]
+                dfs = [s.rename(f"series_{i + 1}") for i, s in enumerate(series)]
 
         if self.subplot:
             warnings.warn("Correlation plot is not supported for subplot=True")
@@ -518,8 +559,7 @@ class FinancePlot:
                         ),
                     ).title(None),
                     alt.Y("value:Q").scale(zero=False),
-                    alt.Color("symbol:N").legend(
-                        orient="top", offset=-20).title(None),
+                    alt.Color("symbol:N").legend(orient="top", offset=-20).title(None),
                 )
             )
 
@@ -561,8 +601,7 @@ class FinancePlot:
             df = df.drop(columns="time").corr()
             chart = (
                 alt.Chart(
-                    df.stack().reset_index().rename(
-                        columns={0: "correlation"}),
+                    df.stack().reset_index().rename(columns={0: "correlation"}),
                     title="Correlation Plot",
                     height=250,
                     width=250,
