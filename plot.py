@@ -399,38 +399,38 @@ class FinancePlot:
         self, *series, bins: int = 20, labels: list = []
     ) -> alt.Chart:
         dfs = self.preprocess(*series, labels=labels)
+        if not dfs:
+            raise ValueError("plot_distribution requires at least one series.")
+
+        melted_frames = []
+        for s in dfs:
+            s.index.name = "time"
+            melted = s.reset_index().melt("time", var_name="symbol", value_name="value")
+            melted["series_label"] = s.name
+            melted_frames.append(melted)
 
         if self.subplot:
-            new_dfs = []
-            for series in dfs:
-                series.index.name = "time"
-                new_dfs.append(
-                    series.reset_index().melt(
-                        "time", var_name="symbol", value_name="value"
-                    )
+            charts = [
+                self._plot_distribution(df, bins).properties(
+                    width=600,
+                    height=300,
+                    title=f"Distribution for {df['series_label'].iat[0]}",
                 )
+                for df in melted_frames
+            ]
+            return alt.vconcat(*charts)
 
-            charts = [self._plot_distribution(df, bins) for df in new_dfs]
-
-            chart = charts[0].properties(
-                width=600, height=300, title=f"Distribution for {dfs[0].name}"
-            )
-            for i, c in enumerate(charts[1:]):
-                c = c.properties(
-                    width=600, height=300, title=f"Distribution for {dfs[i + 1].name}"
-                )
-            chart = chart & c
-
-        else:
-            warnings.warn("Distribution plot is not supported for subplot=False")
-
-        return chart
+        combined = pd.concat(melted_frames, ignore_index=True)
+        return self._plot_distribution(combined, bins).properties(
+            width=600, height=300, title="Distribution"
+        )
 
     def _plot_distribution(self, df: pd.DataFrame, bins: int) -> alt.Chart:
+        has_label = "series_label" in df.columns
+
         if self.interactive:
             select = alt.selection_point(on="click")
             highlight = alt.selection_point(on="pointerover", empty=False)
-
             stroke_width = (
                 alt.when(select)
                 .then(alt.value(2, empty=False))
@@ -438,32 +438,30 @@ class FinancePlot:
                 .then(alt.value(1))
                 .otherwise(alt.value(0))
             )
-
+            encodings = dict(
+                x=alt.X("value:Q", bin=alt.Bin(maxbins=bins)),
+                y="count()",
+                strokeWidth=stroke_width,
+                fillOpacity=alt.when(select)
+                .then(alt.value(1))
+                .otherwise(alt.value(0.3)),
+            )
+            if has_label:
+                encodings["color"] = alt.Color("series_label:N").legend(title="Series")
             chart = (
                 alt.Chart(df, height=200)
-                .mark_bar(
-                    stroke="black",
-                    cursor="pointer",
-                )
-                .encode(
-                    alt.X("value:Q", bin=alt.Bin(maxbins=bins)),
-                    y="count()",
-                    strokeWidth=stroke_width,
-                    fillOpacity=alt.when(select)
-                    .then(alt.value(1))
-                    .otherwise(alt.value(0.3)),
-                )
+                .mark_bar(stroke="black", cursor="pointer")
+                .encode(**encodings)
                 .add_params(select, highlight)
             )
         else:
-            chart = (
-                alt.Chart(df)
-                .mark_bar()
-                .encode(
-                    alt.X("value:Q", bin=alt.Bin(maxbins=bins)),
-                    y="count()",
-                )
+            encodings = dict(
+                x=alt.X("value:Q", bin=alt.Bin(maxbins=bins)),
+                y="count()",
             )
+            if has_label:
+                encodings["color"] = alt.Color("series_label:N").legend(title="Series")
+            chart = alt.Chart(df).mark_bar().encode(**encodings)
 
         return chart
 
